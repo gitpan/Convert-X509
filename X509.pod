@@ -1,0 +1,161 @@
+=head1 NAME
+
+Convert::X509 - parse X509 Request, Certificate and CRL
+
+=head1 SYNOPSYS
+
+  use Convert::X509::Request;
+  use Convert::X509::Certificate;
+  use Convert::X509::CRL;
+
+  use Data::Dumper;
+
+  my $d;
+  local $/;
+
+  open (F,'< request.req');
+  $d = Convert::X509::Request->new(<F>);
+  print Dumper ($d);
+  print join(',',$d->subject()), "\n",
+        join("\n",$d->subject('cp866','cp1251')), "\n"; # localized Cyrillic
+
+  open (F,'< certificate.cer');
+  $d = Convert::X509::Certificate->new(<F>);
+  print Dumper ($d);
+  print join(',',$d->issuer()), "\n";
+
+  open (F,'< crl.crl');
+  $d = Convert::X509::CRL->new(<F>);
+  print Dumper ($d);
+  my ($s) = sort keys %{$d->{'crl'}}; # example, take "first" serial
+  print 'Revocation reason for certificate N ',$s,' : ',$d->reason($s);
+        
+=head1 DESCRIPTION
+
+Convert::X509 consists of four parts - Request, Certificate, CRL.
+They are respectively parse requests, certificates and crl-s.
+Almost any valueble data could be easely extracted directly from returned object
+(look in Dumper output).
+
+The 4-th module is internal Convert::X509::Parser.
+Almost everything is located in it - ASN.1 sructure, OIDs "database" and base methods.
+
+Take a look on Convert::X509::minipkcs7 - it just gets serials from PKCS7 message
+
+=head1 METHODS
+
+=head2 new
+
+Constructor, creates a new object.
+It takes a parameter which contains req/cert/crl itself -
+both DER and BASE64 encoding supported.
+
+=head2 subject, eku, keyusage, issuer, serial, reason
+
+For some convinience, there are a few methods with self-explaining names.
+
+=over 4
+
+=item subject
+
+Applicable to Request and Certificate.
+Returns a list (!) like ('CN=Name Surname','C=RU','L=Moscow').
+Easy to print - join(',',$req->subject()).
+
+X509 data may contains unicode strings,
+so in general we have to decode it to localized one-byte oriented string.
+That's why subject can get up to two codepages (look Encode.pm).
+Second parameter is also a codepage in case when system-wide and console settings
+are different (for instance, M$ Windows(R) and cyrillic CP1251 & CP866).
+To set up default encodings one can write
+
+  use Convert::X509::Parser;
+  Convert::X509::Parser->_set_cp('cp866','cp1251');
+
+and print $req->subject() with installed options.
+Now this is not instance-oriented, but global for all reqs, certs and crls.
+
+=item issuer
+
+Applicable to Certificate and CRL.
+See subject for details.
+
+=item eku (EnhancedKeyUsage)
+
+Applicable to Request and Certificate.
+Returns a list with EKU OIDs.
+
+=item keyusage
+
+Applicable to Request and Certificate.
+Returns a list with descriptions for installed bits.
+
+=item serial
+
+Applicable to Certificate and CRL.
+Returns serial in hexadecimal view.
+
+=item reason
+
+Applicable to CRL only.
+Returns a revocation description for certificate with given serial.
+If reason totally hasn't been specified - returns 'Unspecified' anyway.
+
+=back
+
+=head1 EXPORTS
+
+Nothing is exported (by design)
+
+=head1 TODO
+
+=over 4
+
+=item *
+
+More supplemental functions.
+
+=item *
+
+More documentation.
+
+=item *
+
+More tests.
+
+=item *
+
+More OIDs/ASN structures.
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+These modules were created with initial ideas on the Crypt::X509 package.
+Thanks to its authors
+Mike Jackson <mj@sci.fi>, 
+Alexander Jung <alexander.w.jung@gmail.com>,
+Duncan Segrest <duncan@gigageek.info>;
+
+And also
+Norbert Klasen (author of x509decode script, which was contributed to Convert::ASN1 in 2002)
+and
+Graham Barr <gbarr@pobox.com> (author of Convert::ASN1 package).
+
+=head1 P.S.
+
+Your PKCS#xx structures may contain many unusual things, which I haven't ever seen.
+Mail me any suggestions. And do not afraid to looking inside modules!
+I hope they are quite simple.
+
+=head1 P.P.S.
+
+Probably, I'll change internal interconnections between modules someday, but SYNOPSYS part of
+this pod will stay the same.
+
+
+=head1 AUTHOR
+
+Leonid Cherepanov <grey.leo AT gmail.com>
+
+=cut
