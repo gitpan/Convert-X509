@@ -1,12 +1,18 @@
 package Convert::X509::Parser;
 
+=head1 NAME
+
+Core module to parse X509 requests, certificates and CRLs
+
+=cut
+
 use Carp;
 use strict;
 use warnings;
 use Convert::ASN1;
 use MIME::Base64;
 
-our $VERSION = '0.1';
+our $VERSION = '0.2';
 
 #use Data::Dumper;
 
@@ -25,8 +31,16 @@ my %oid_db=(
 	'CRL'	=> { 'asn'=>'CertificateList' },
 	'REQ'	=> { 'asn'=>'CertificationRequest' },
 	'CERT'	=> { 'asn'=>'Certificate' },
-	'DS'	=> { 'asn'=>'DirectoryString' },
+   'PKCS7'	=> { 'asn'=>'ContentInfo' },
+	# PKCS7 messages
+	'1.2.840.113549.1.7.1'	=> { 'asn'=>'Data' },
+	'1.2.840.113549.1.7.2'	=> { 'asn'=>'SignedData' },
+	'1.2.840.113549.1.7.3'	=> { 'asn'=>'EnvelopedData' },
+	'1.2.840.113549.1.7.4'	=> { 'asn'=>'SignedAndEnvelopedData' },
+	'1.2.840.113549.1.7.5'	=> { 'asn'=>'DigestedData' },
+	'1.2.840.113549.1.7.6'	=> { 'asn'=>'EncryptedData' },
 	# subject
+	'DS'	=> { 'asn'=>'DirectoryString' },
 	'2.5.4.3'	=> { 'desc'=>'CN'	}, # name and surname
 	'2.5.4.6' 	=> { 'desc'=>'C'	},	# Country
 	'2.5.4.7' 	=> { 'desc'=>'L'	},	# city (Location)
@@ -61,7 +75,7 @@ my %oid_db=(
 	'1.3.6.1.4.1.311.2.1.14'	=> { 'desc'=>'M$ Certificate request extensions', 'asn'=>'Extensions' },
 	'1.2.840.113549.1.9.14'	=> { 'desc'=>'RSA Certificate request extensions', 'asn'=>'Extensions' },
 	'1.2.840.113549.1.9.15'	=> { 'desc'=>'S/Mime capabilities', 'asn'=>'SMIMECapabilities' },
-	'1.3.6.1.4.1.311.13.2.3'	=> { 'desc'=>'OS Version', 'asn'=>'DirectoryString' },
+	'1.3.6.1.4.1.311.13.2.3'	=> { 'desc'=>'M$ OS Version', 'asn'=>'DirectoryString' },
 	'1.3.6.1.4.1.311.13.2.2'	=> { 'desc'=>'M$ ENROLLMENT_CSP_PROVIDER', 'asn'=>'EnrollmentCSPProvider' },
 	'1.3.6.1.4.1.311.21.1'	=> { 'desc'=>'M$ CERTSRV_CA_VERSION', 'asn'=>'DirectoryString' },
 	'1.3.6.1.4.1.311.21.4'	=> { 'desc'=>'M$ next CRL publish date', 'asn'=>'Time' },
@@ -107,15 +121,31 @@ sub _set_cp {
   $cp_to='latin1' unless $cp_to;
 }
 
+sub _ansi_now{
+# in: datetime in seconds
+# out: list ('yyyy-mm-dd', 'HH:MM:SS')
+	my ($sec,$min,$hh,$dd,$mm,$yyyy)=localtime(shift || time());
+	my ($d,$t) =
+		(
+			1900+$yyyy . '-' .
+			 (++$mm<10 ? '0' : '') . $mm . '-' .
+			 ($dd<10 ? '0' : '') . $dd,
+
+			($hh<10 ? '0' : '') . $hh . ':' .
+			 ($min<10 ? '0' : '') . $min . ':' .
+			 ($sec<10 ? '0' : '') . $sec
+		);
+	return(wantarray ? ($d,$t) : "$d $t");
+}
+
 sub _prepare {
-  my ($pdata) = @_;
-  warn ('Parameter must be a scalar ref') && return undef unless ref($pdata) eq 'SCALAR';
+  my ($pdata, $debug) = @_;
+  warn ('Parameter must be a scalar ref') and return undef unless ref($pdata) eq 'SCALAR';
   unless (unpack('H3',$$pdata) eq '308'){ # first 2 bytes for ASN.1 SEQUENCE
-    $$pdata = decode_base64(
-      join("\n",
-        $$pdata =~ m!^([A-Za-z01-9+/]{1,})[-=]*$!gm
-      )
-    );
+    $$pdata = join("\n",
+        $$pdata =~ m!^([A-Za-z01-9+/]{1,}[-=]*)$!gm );
+    warn $$pdata if $debug;
+    $$pdata = decode_base64($$pdata);
   }
 }
 
@@ -190,21 +220,14 @@ sub _decode_ext {
   return $res;
 }
 
-sub _rdn2str {
-  my $rdn = shift;
-  return () unless ref($rdn) eq 'HASH';
-  return
-    map {
-      my $t=_oid2txt($_);
-      map {
-        $t .'='. _localize($_, @_)
-        } @{$rdn->{$_}}
-    } sort keys %$rdn;
-#  my @res;
-#  while(my ($k,$v) = each %$rdn){
-#    push @res, map {_oid2txt($k) . '=' . _localize($_)} @$v;
-#  }
-#  return @res;
+sub _rdn2hash {
+	my $rdn = shift;
+	return undef unless ref($rdn) eq 'HASH';
+	my %h;
+	while(my ($k,$v) = each %$rdn){
+		$h{_oid2txt($k)} = [map {_localize($_, @_)} @$v];
+	}
+	return %h;
 }
 
 sub _eku {
@@ -243,8 +266,10 @@ Validity ::= SEQUENCE {
 	notAfter  Time}
 
 Time ::= CHOICE {
-	utcTime     UTCTime,
-	generalTime GeneralizedTime}
+-- A few things will work with GTime
+	generalTime GeneralizedTime,
+	utcTime     UTCTime
+}
 
 UniqueIdentifier ::= BIT STRING
 
