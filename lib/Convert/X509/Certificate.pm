@@ -2,7 +2,7 @@ package Convert::X509::Certificate;
 
 =head1 NAME
 
-Parse X509 certificates
+Convert::X509::Certificate parses X509 certificates
 
 =cut
 
@@ -14,8 +14,6 @@ use Convert::X509::Parser;
 
 use strict;
 use warnings;
-
-our $VERSION = '0.2';
 
 sub new {
 	my ($class,$data,$debug)=@_;

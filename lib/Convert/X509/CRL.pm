@@ -2,7 +2,7 @@ package Convert::X509::CRL;
 
 =head1 NAME
 
-Parse X509 CertificateRevocationLists
+Convert::X509::CRL parses X509 CertificateRevocationLists
 
 =cut
 
@@ -14,8 +14,6 @@ use Convert::X509::Parser;
 
 use strict;
 use warnings;
-
-our $VERSION = '0.2';
 
 sub new {
 	my ($class,$data,$debug)=@_;

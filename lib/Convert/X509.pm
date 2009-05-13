@@ -2,7 +2,7 @@ package Convert::X509;
 
 =head1 NAME
 
-Interface module to help analizing X509 data
+Convert::X509 - interface module to help analizing X509 data
 
 =cut
 
@@ -14,7 +14,7 @@ use strict;
 use warnings;
 use Convert::X509::Parser;
 
-our $VERSION = '0.2';
+our $VERSION = '0.3';
 
 my $SubClasses = {
 	'Certificate' => {

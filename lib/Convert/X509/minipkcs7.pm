@@ -24,8 +24,6 @@ use warnings;
 use Convert::ASN1;
 use MIME::Base64;
 
-our $VERSION = '0.2';
-
 my %oid_db=(
    'PKCS7'	=> { 'asn'=>'ContentInfo' },
 	'1.2.840.113549.1.7.1'	=> { 'asn'=>'Data' },

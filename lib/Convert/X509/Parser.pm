@@ -2,7 +2,7 @@ package Convert::X509::Parser;
 
 =head1 NAME
 
-Core module to parse X509 requests, certificates and CRLs
+Convert::X509::Parser core module to parse X509 requests, certificates and CRLs
 
 =cut
 
@@ -11,8 +11,6 @@ use strict;
 use warnings;
 use Convert::ASN1;
 use MIME::Base64;
-
-our $VERSION = '0.2';
 
 #use Data::Dumper;
 
